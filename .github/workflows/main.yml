@@ -1,0 +1,31 @@
+name: Check URL Size
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+
+jobs:
+  check-url-size:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check anonymous endpoint
+        run: |
+          content_length=$(curl --head -s -w '%{size_download}\n' -o /dev/null https://www.reddit.com/r/rust.json)
+          if [[ $content_length -lt 30720 ]]; then
+            echo "URL size is less than 30kb. Failing the action."
+            exit 1
+          else
+            echo "URL size is greater than or equal to 30kb. Continuing with the action."
+          fi
+      - name: Check OAuth API
+        run: |
+          json_response=$(curl 'https://www.reddit.com/api/v1/access_token' -X POST -H 'Authorization: Basic Yml3MWswWVptRFVyamc6' --data-raw 'grant_type=https%3A%2F%2Foauth.reddit.com%2Fgrants%2Finstalled_client&device_id=8be797441ab20dcfefca1214ec73ce7664cbb35cd67f974a76&redirect_uri=https%3A%2F%2Fthread.pfg.pw%2Flogin%2Freddit')
+          access_token=$(echo "$json_response" | jq -r '.access_token')
+
+          if [[ -z "$access_token" ]]; then
+            echo "Response does not contain an 'access_token'. Failing the action."
+            exit 1
+          else
+            echo "URL response is valid JSON and contains an 'access_token'. Continuing with the action."
+          fi
